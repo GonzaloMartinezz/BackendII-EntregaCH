@@ -6,6 +6,8 @@ import passport from 'passport';
 import initializePassport from './config/passport.config.js';
 import sessionsRouter from './routes/users.router.js';
 import dotenv from 'dotenv';
+import usersRouter from './routes/sessions.router.js';
+
 
 dotenv.config();
 
@@ -33,10 +35,14 @@ mongoose.connect(process.env.MONGO_URI)
 // --- Rutas ---
 // ¡Aquí cargamos las rutas para Postman!
 app.use('/api/sessions', sessionsRouter);
+app.use('/api/users', usersRouter);   
+ 
+
 
 // Iniciar el servidor
 app.listen(PORT, () => {
     console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
+
 
 export default app;
