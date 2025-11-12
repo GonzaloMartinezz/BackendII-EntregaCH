@@ -1,43 +1,42 @@
-// src/index.js
+
 import express from 'express';
 import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
 import passport from 'passport';
-import cookieParser from 'cookie-parser'; 
 import initializePassport from './config/passport.config.js';
-import userRouter from './routes/users.router.js';
+import sessionsRouter from './routes/users.router.js';
 import dotenv from 'dotenv';
 
-// Cargar variables de entorno
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
-// Middlewares
+// --- Middlewares ---
+// Para que el servidor entienda JSON y formularios
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser()); // ¡FUNDAMENTAL para leer cookies!
+// Para leer las cookies
+app.use(cookieParser());
 
-// Inicializar Passport
+// --- Configuración de Passport ---
+// Llama a la función que configura nuestra estrategia 'current'
 initializePassport(); 
 app.use(passport.initialize());
 
-// Conexión a Mongoose (usando la variable de .env)
-mongoose.connect(process.env.MONGO_URL)
-.then(() => {
-    console.log('Connected to MongoDB');
-})
-.catch((error) => {
-    console.error('Error connecting to MongoDB:', error);
-});
+// --- Conexión a MongoDB ---
+// ¡Aquí conectamos con Mongo DB como pediste!
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('Conectado a MongoDB'))
+    .catch(err => console.error('Error al conectar a MongoDB:', err));
 
-// Rutas
-app.use('/api/sessions', userRouter); // ¡El prefijo que pide la consigna!
+// --- Rutas ---
+// ¡Aquí cargamos las rutas para Postman!
+app.use('/api/sessions', sessionsRouter);
 
-app.get('/', (req, res) => {
-    res.send('Entrega 1 - Backend - Gonzalo Martinez');
-});
-
+// Iniciar el servidor
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
+
+export default app;

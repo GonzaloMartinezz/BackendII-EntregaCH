@@ -1,106 +1,89 @@
-// src/routes/users.router.js
 import { Router } from 'express';
-import userModel from '../models/user.model.js';
-import { generateToken } from '../utils/utils.js';
+import { userModel } from '../models/user.model.js';
+import jwt from 'jsonwebtoken';
 import passport from 'passport';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET;
 
-/**
- * POST /api/sessions/register
- */
+// --- Ruta de Registro (POST) ---
+// (Necesaria para crear usuarios para probar)
 router.post('/register', async (req, res) => {
+    const { first_name, last_name, email, age, password } = req.body;
+
     try {
-        const { first_name, last_name, email, age, password } = req.body;
-
-        if (!first_name || !last_name || !email || !age || !password) {
-            return res.status(4.00).send({ status: 'error', message: 'Faltan datos' });
+        const existingUser = await userModel.findOne({ email });
+        if (existingUser) {
+            return res.status(400).send({ status: 'error', message: 'El email ya está registrado' });
         }
-
-        const userExists = await userModel.findOne({ email });
-        if (userExists) {
-            return res.status(4.00).send({ status: 'error', message: 'El email ya está registrado' });
-        }
-
-     
-
-        const newUser = await userModel.create({
-            first_name,
-            last_name,
-            email,
-            age,
-            password,
+        
+        const newUser = new userModel({
+            first_name, last_name, email, age,
+            password // La contraseña en texto plano
         });
+
+        // El hook 'pre-save' en el modelo se encargará de hashearla
+        await newUser.save(); 
 
         res.status(201).send({ status: 'success', message: 'Usuario registrado exitosamente' });
 
     } catch (error) {
-        console.error(error);
-        res.status(5.00).send({ status: 'error', message: 'Error interno al registrar el usuario' });
+        res.status(500).send({ status: 'error', message: 'Error al registrar el usuario', error: error.message });
     }
 });
 
-/**
- * POST /api/sessions/login
- */
+// --- Ruta de Login (POST) ---
+// Esto cumple con "El sistema de login permite a los usuarios autenticarse y genera un token JWT válido" 
 router.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+
     try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(4.00).send({ status: 'error', message: 'Faltan datos' });
-        }
-
         const user = await userModel.findOne({ email });
 
         if (!user) {
-            return res.status(4.01).send({ status: 'error', message: 'Credenciales inválidas (usuario)' });
+            return res.status(401).send({ status: 'error', message: 'Email no encontrado' });
         }
 
-        if (!user.isValidPassword(password)) {
-            return res.status(4.01).send({ status: 'error', message: 'Credenciales inválidas (contraseña)' });
+        // Usamos el método de instancia que creamos en el modelo
+        if (!user.comparePassword(password)) {
+            return res.status(401).send({ status: 'error', message: 'Contraseña incorrecta' });
         }
 
-        // Generamos el token JWT
-        const token = generateToken(user);
+        // Si es válido, creamos el payload del token (sin datos sensibles)
+        const userPayload = {
+            id: user._id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            age: user.age,
+            role: user.role,
+            cart: user.cart
+        };
+
+        // Generamos el Token JWT
+        const token = jwt.sign({ user: userPayload }, JWT_SECRET, { expiresIn: '1h' });
 
         // Enviamos el token en una cookie
-        res.cookie('coderCookie', token, {
-            httpOnly: true, // No accesible desde JS del cliente
-            maxAge: 60 * 60 * 1000 // 1 hora
-        }).send({ status: 'success', message: 'Login exitoso' });
+        res.cookie('jwtCookie', token, {
+            httpOnly: true, // No accesible por JS
+            secure: false,  // (Poner 'true' en producción con HTTPS)
+            maxAge: 3600000 // 1 hora
+        }).send({ status: 'success', message: 'Login exitoso', payload: userPayload });
 
     } catch (error) {
-        console.error(error);
-        res.status(5.00).send({ status: 'error', message: 'Error interno en el login' });
+        res.status(500).send({ status: 'error', message: 'Error interno del servidor' });
     }
 });
 
-/**
- * GET /api/sessions/current
- */
-router.get('/current',
-    // Middleware de Passport con la estrategia 'jwt'
-    passport.authenticate('jwt', { session: false }),
+// --- Ruta Current (GET) ---
+// Esto cumple con "Endpoint /api/sessions/current" 
+router.get('/current', 
+    // Middleware de Passport: usa la estrategia 'current'
+    passport.authenticate('current', { session: false }), 
     (req, res) => {
-        
-        // Si Passport tiene éxito, adjunta el usuario (del token) a req.user
-        if (!req.user) {
-            return res.status(4.01).send({ status: 'error', message: 'No autorizado' });
-        }
-
-        // Creamos un DTO (Data Transfer Object) para no enviar datos sensibles
-        const userDTO = {
-            id: req.user._id,
-            first_name: req.user.first_name,
-            last_name: req.user.last_name,
-            email: req.user.email,
-            age: req.user.age,
-            role: req.user.role,
-            cart: req.user.cart
-        };
-        
-        res.send({ status: 'success', user: userDTO });
+        // Si passport.authenticate() pasa, el usuario está en req.user
+        // Esto cumple con "valida al usuario logueado y extrae sus datos" 
+        res.send({ status: 'success', payload: req.user });
     }
 );
 

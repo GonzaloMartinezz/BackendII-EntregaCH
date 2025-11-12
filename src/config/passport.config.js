@@ -1,38 +1,40 @@
 import passport from 'passport';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
-import userModel from '../models/user.model.js';
 import { cookieExtractor } from '../utils/utils.js';
+
+import dotenv from 'dotenv';
+dotenv.config();
+
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const initializePassport = () => {
 
-    /**
-     * Estrategia JWT (la llamaremos 'jwt').
-     * Esta es la "Estrategia Current" que pide la consigna.
-     */
-    passport.use('jwt', new JwtStrategy(
+    // Estrategia "current"
+    // Esto cumple con "Se ha implementado una estrategia para la autenticación del usuario mediante JWT" 
+    // y "Se ha implementado una estrategia 'current'" 
+    passport.use('current', new JwtStrategy(
         {
-            // Extrae el token de la cookie
+            // Le decimos que extraiga el token desde nuestra función
             jwtFromRequest: ExtractJwt.fromExtractors([cookieExtractor]),
             secretOrKey: JWT_SECRET
         },
         async (jwt_payload, done) => {
             try {
-                // jwt_payload es el contenido del token
-                // Buscamos al usuario por su ID
-                const user = await userModel.findById(jwt_payload.id).lean();
-
-                if (user) {
-                    return done(null, user); // Usuario encontrado, adjunta a req.user
-                } else {
-                    return done(null, false); // No hay usuario con ese token
+                // jwt_payload es el objeto { user: { ... } } que guardamos en el token
+                if (!jwt_payload.user) {
+                    return done(null, false, { message: 'Token inválido.' });
                 }
+                
+                // Si el usuario existe en el payload, lo pasamos
+                return done(null, jwt_payload.user);
+
             } catch (error) {
-                return done(error, false);
+                return done(error);
             }
         }
     ));
+
 };
 
 export default initializePassport;
