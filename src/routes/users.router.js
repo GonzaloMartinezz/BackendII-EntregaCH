@@ -1,8 +1,11 @@
-
 import { Router } from 'express';
 import { userModel } from '../models/user.model.js';
+import {createToken} from '../utils/utils.js';
+import passport from 'passport';
 
 const router = Router();
+
+const users = [{id:1, name:'Gonzalo'}, {id:2, name:'Coder'}];
 
 // --- GET Todos los Usuarios (READ) ---
 // Esta es la ruta que SÍ va a responder a /api/users/

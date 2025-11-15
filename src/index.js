@@ -1,4 +1,3 @@
-
 import express from 'express';
 import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
@@ -12,7 +11,8 @@ import usersRouter from './routes/sessions.router.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.set('port', process.env.PORT || 3000);
+const PORT = app.get('port');
 
 // --- Middlewares ---
 // Para que el servidor entienda JSON y formularios
@@ -32,6 +32,7 @@ mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('Conectado a MongoDB'))
     .catch(err => console.error('Error al conectar a MongoDB:', err));
 
+    
 // --- Rutas ---
 // ¡Aquí cargamos las rutas para Postman!
 app.use('/api/sessions', sessionsRouter);
